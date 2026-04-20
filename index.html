@@ -1784,36 +1784,6 @@ html[lang="zh"] .leaflet-popup-content .pop-action {
 .map-loading.hidden { display: none; }
 
 /* State tooltip / popup for choropleth */
-/* State centroid labels — appear when choropleth on and zoom ≥ 6.
-   Subtle, non-interactive, designed to not compete with markers. */
-.state-label {
-  pointer-events: none;
-  background: transparent;
-  border: none;
-  text-align: center;
-}
-.state-label span {
-  display: inline-block;
-  font-family: var(--sans);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.58);
-  text-shadow:
-    -1px -1px 0 rgba(13, 41, 66, 0.9),
-     1px -1px 0 rgba(13, 41, 66, 0.9),
-    -1px  1px 0 rgba(13, 41, 66, 0.9),
-     1px  1px 0 rgba(13, 41, 66, 0.9);
-  white-space: nowrap;
-  padding: 1px 4px;
-}
-html[lang="zh"] .state-label span {
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-
 .state-tooltip {
   position: absolute;
   background: rgba(15, 45, 71, 0.97);
@@ -3430,47 +3400,6 @@ function initChoropleth() {
   });
   // Put choropleth below markers; use overlayPane (default for L.geoJSON) which is below markerPane
   if (state.showChoropleth) stateLayer.addTo(map);
-
-  // State labels — centroid-placed name labels that appear when zoomed in.
-  // Reduce clutter at low zoom levels; activate when zoom ≥ 6.
-  stateLabelLayer = L.layerGroup();
-  STATES_GEOJSON.features.forEach(f => {
-    try {
-      const bounds = L.geoJSON(f).getBounds();
-      if (!bounds.isValid()) return;
-      const centre = bounds.getCenter();
-      const nm = (CUR_LANG === 'zh' && f.properties.name_zh) ? f.properties.name_zh : f.properties.name;
-      const lbl = L.marker(centre, {
-        icon: L.divIcon({
-          className: 'state-label',
-          html: '<span>' + nm + '</span>',
-          iconSize: [80, 16],
-          iconAnchor: [40, 8]
-        }),
-        interactive: false,
-        keyboard: false
-      });
-      lbl._stateName = f.properties.name;
-      stateLabelLayer.addLayer(lbl);
-    } catch(e) {}
-  });
-  updateStateLabelVisibility();
-  map.on('zoomend', updateStateLabelVisibility);
-}
-
-// State labels — show when choropleth layer is on AND zoom is high enough
-// to not overcrowd the view.
-let stateLabelLayer = null;
-const STATE_LABEL_MIN_ZOOM = 6;
-
-function updateStateLabelVisibility() {
-  if (!map || !stateLabelLayer) return;
-  const shouldShow = state.showChoropleth && map.getZoom() >= STATE_LABEL_MIN_ZOOM;
-  if (shouldShow) {
-    if (!map.hasLayer(stateLabelLayer)) stateLabelLayer.addTo(map);
-  } else {
-    if (map.hasLayer(stateLabelLayer)) map.removeLayer(stateLabelLayer);
-  }
 }
 
 function renderChoropleth() {
@@ -3478,7 +3407,6 @@ function renderChoropleth() {
   if (!state.showChoropleth) {
     if (map.hasLayer(stateLayer)) map.removeLayer(stateLayer);
     if (window._updateLegendVisibility) window._updateLegendVisibility();
-    updateStateLabelVisibility();
     return;
   }
   if (!map.hasLayer(stateLayer)) stateLayer.addTo(map);
@@ -3491,7 +3419,6 @@ function renderChoropleth() {
   stateLayer._latestScores = scores;
   stateLayer._latestBreaks = breaks;
   stateLayer._currentStyleFn = styleFn;
-  updateStateLabelVisibility();
 }
 
 // STATE TOOLTIP
@@ -4303,7 +4230,6 @@ document.addEventListener('DOMContentLoaded', () => {
     applyI18n();
     if (map) map.closePopup();
     refresh();
-    rebuildStateLabels();
     if (state.activeIncident) showDetail(state.activeIncident);
   };
   document.getElementById('langZH').onclick = () => {
@@ -4314,38 +4240,9 @@ document.addEventListener('DOMContentLoaded', () => {
     applyI18n();
     if (map) map.closePopup();
     refresh();
-    rebuildStateLabels();
     if (state.activeIncident) showDetail(state.activeIncident);
   };
 });
-
-// Rebuild state label layer with current-language names
-function rebuildStateLabels() {
-  if (!stateLabelLayer || !map) return;
-  const wasVisible = map.hasLayer(stateLabelLayer);
-  stateLabelLayer.clearLayers();
-  STATES_GEOJSON.features.forEach(f => {
-    try {
-      const bounds = L.geoJSON(f).getBounds();
-      if (!bounds.isValid()) return;
-      const centre = bounds.getCenter();
-      const nm = (CUR_LANG === 'zh' && f.properties.name_zh) ? f.properties.name_zh : f.properties.name;
-      const lbl = L.marker(centre, {
-        icon: L.divIcon({
-          className: 'state-label',
-          html: '<span>' + nm + '</span>',
-          iconSize: [80, 16],
-          iconAnchor: [40, 8]
-        }),
-        interactive: false,
-        keyboard: false
-      });
-      lbl._stateName = f.properties.name;
-      stateLabelLayer.addLayer(lbl);
-    } catch(e) {}
-  });
-  if (wasVisible) updateStateLabelVisibility();
-}
 </script>
 
 </body>
